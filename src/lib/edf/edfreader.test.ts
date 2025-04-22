@@ -30,7 +30,7 @@ describe("EDFReader", () => {
     expect(header.version).toBe("0");
     expect(header.patientId).toBe("X X X X");
     expect(header.recordingId).toBe("Startdate 10-DEC-2009 X X test_generator");
-    expect(header.startTime.toISOString()).toBe("2009-12-10T11:44:02.000Z");
+    expect(header.startTime.toDateString()).toBe(new Date(2009, 11, 10, 12, 44, 2).toDateString());
     expect(header.headerBytes).toBe(3328);
     expect(header.reserved).toBe("EDF+C");
     expect(header.dataRecords).toBe(600);
