@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * Copyright (C) 2025 The OpenPSG Authors.
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
