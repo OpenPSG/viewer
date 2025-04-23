@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * Copyright (C) 2025 The OpenPSG Authors.
+ */
+
+/* Use a pointer style cursor for the entire plot */
+.js-plotly-plot .cursor-ew-resize {
+  cursor: default !important;
+}
+
+.js-plotly-plot .cursor-ns-resize {
+  cursor: default !important;
+}
+
+.js-plotly-plot .cursor-crosshair {
+  cursor: default !important;
+}
+
+.js-plotly-plot .cursor-move {
+  cursor: default !important;
+}

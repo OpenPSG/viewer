@@ -3,77 +3,22 @@
 // Copyright (C) 2025 The OpenPSG Authors.
 
 import React, { useEffect, useRef, useState, useMemo } from "react";
+import "./PSGViewer.css";
 import Plot from "react-plotly.js";
 import { EDFHeader } from "../lib/edf/edftypes";
+import {
+  getSignalType,
+  getColorForSignalType,
+  getYAxisRangeForSignal,
+  getFiltersForSignal,
+} from "../lib/signal/signal";
+import { IIRFilter } from "../lib/filters/IIRFilter";
+import { resample } from "../lib/resampling/resample";
 
 interface PSGViewerProps {
   header: EDFHeader;
   signals: number[][];
 }
-
-// TODO: extract this to a separate file as a proper enum and a whole bunch of
-// fuzzy matchers. Also we need a sensitivity control knob.
-const standardSensitivities: Record<string, number> = {
-  EEG: 7, // µV/mm
-  EOG_EMG: 10, // µV/mm
-  ECG: 10, // mV/mm (will be converted to µV if necessary)
-  RESPIRATION: 0.2, // L/s per mm
-  SPO2: 1, // %/mm
-  PRESSURE: 0.5, // cmH2O per mm
-  OTHER: 10, // fallback sensitivity
-};
-
-const getYAxisRangeFromSensitivity = (
-  signalType: string,
-  unit: string,
-  displayHeightMM = 50,
-): [number, number] => {
-  let sensitivity =
-    standardSensitivities[signalType] ?? standardSensitivities["OTHER"];
-  if (unit.toLowerCase().includes("mv") && signalType === "ECG") {
-    sensitivity *= 1000; // Convert mV to µV
-  }
-  const rangeHalf = (sensitivity * displayHeightMM) / 2;
-  return [-rangeHalf, rangeHalf];
-};
-
-// TODO: sit down and think hard about nondistracting color pallettes.
-const getSignalColor = (type: string): string => {
-  switch (type) {
-    case "EEG":
-      return "#2c2c2c";
-    case "EOG_EMG":
-      return "#3b5f8f";
-    case "ECG":
-      return "#8f4b4b";
-    case "RESPIRATION":
-      return "#336666";
-    case "SPO2":
-      return "#594f81";
-    case "PRESSURE":
-      return "#996633";
-    default:
-      return "#4f4f4f";
-  }
-};
-
-const getSignalType = (label: string): string => {
-  const lower = label.toLowerCase();
-  if (lower.includes("eeg")) return "EEG";
-  if (lower.includes("eog") || lower.includes("emg")) return "EOG_EMG";
-  if (lower.includes("ecg") || lower.includes("ekg")) return "ECG";
-  if (
-    lower.includes("resp") ||
-    lower.includes("thorax") ||
-    lower.includes("abdo") ||
-    lower.includes("flow")
-  )
-    return "RESPIRATION";
-  if (lower.includes("spo2") || lower.includes("ox") || lower.includes("sao2"))
-    return "SPO2";
-  if (lower.includes("press") || lower.includes("pleth")) return "PRESSURE";
-  return "OTHER";
-};
 
 const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,29 +44,52 @@ const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
 
   const yAxisRanges = useMemo(() => {
     return header.signals.map((signal) => {
-      const type = getSignalType(signal.label);
-      const unit = signal.physicalDimension;
-      return getYAxisRangeFromSensitivity(type, unit);
+      const signalType = getSignalType(signal);
+      return getYAxisRangeForSignal(signalType, signal.physicalDimension);
     });
   }, [header.signals]);
 
-  // TODO: downsample agressively when the user zooms out. This is a lot of data to plot.
+  const filteredSignals = useMemo(() => {
+    return signals.map((signalData, index) => {
+      const signalType = getSignalType(header.signals[index]);
+      const sampleRate =
+        header.signals[index].samplesPerRecord / header.recordDuration;
+
+      const filter = new IIRFilter(getFiltersForSignal(signalType, sampleRate));
+
+      // TODO: in place to save memory?
+      // TODO: spawn a web worker to do this in parallel
+      const filteredSignalData = filter.multiStep(signalData, false);
+
+      return filteredSignalData;
+    });
+  }, [header, signals]);
+
   const traces = useMemo(() => {
-    return signals.map((channelData, index) => {
+    return filteredSignals.map((channelData, index) => {
       const channelSampleRate =
         header.signals[index].samplesPerRecord / header.recordDuration;
+
       const startIndex = Math.max(0, Math.floor(xRange[0] * channelSampleRate));
       const endIndex = Math.min(
         channelData.length,
         Math.ceil(xRange[1] * channelSampleRate),
       );
+
+      const channelDataSegment = channelData.slice(startIndex, endIndex);
+
+      // Downsample the data to reduce the number of points plotted
+      const ySlice = resample(channelDataSegment, 10000, false); // TODO: N should be dynamic?
+
+      // Generate x values for the downsampled data
+      const xStep = (xRange[1] - xRange[0]) / ySlice.length;
       const xSlice = Array.from(
-        { length: endIndex - startIndex },
-        (_, i) => (startIndex + i) / channelSampleRate,
+        { length: ySlice.length },
+        (_, i) => xRange[0] + i * xStep,
       );
-      const ySlice = channelData.slice(startIndex, endIndex);
+
       const unit = header.signals[index].physicalDimension;
-      const signalType = getSignalType(channelLabels[index]);
+      const signalType = getSignalType(header.signals[index]);
       return {
         x: xSlice,
         y: ySlice,
@@ -129,11 +97,11 @@ const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
         mode: "lines" as const,
         name: channelLabels[index],
         yaxis: `y${index === 0 ? "" : index + 1}` as Plotly.AxisName,
-        line: { width: 1, color: getSignalColor(signalType) },
+        line: { width: 1, color: getColorForSignalType(signalType) },
         hovertemplate: `<b>${channelLabels[index]}</b><br>Time: %{x:.2f} s<br>Value: %{y:.2f} ${unit}<extra></extra>`,
       };
     }) as Plotly.Data[];
-  }, [xRange, signals, header, channelLabels]);
+  }, [xRange, filteredSignals, header, channelLabels]);
 
   const secondMarkers = useMemo(() => {
     const visibleSeconds = xRange[1] - xRange[0];
