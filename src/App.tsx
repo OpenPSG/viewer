@@ -3,12 +3,10 @@
 // Copyright (C) 2025 The OpenPSG Authors.
 
 import React, { useState } from "react";
-import { EDFReader } from "@/lib/edf/edfreader";
-import { EDFHeader } from "@/lib/edf/edftypes";
+import { EDFHeader, EDFReader } from "edf-ts";
 import { PSGViewer, PSGEvent } from "@/components/PSGViewer";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import _ from "lodash";
 
 function App() {
   const [edfHeader, setEdfHeader] = useState<EDFHeader | null>(null);
@@ -22,12 +20,12 @@ function App() {
     if (!file) return;
 
     const arrayBuffer = await file.arrayBuffer();
-    const reader = new EDFReader(arrayBuffer);
+    const reader = new EDFReader(new Uint8Array(arrayBuffer));
     const header = reader.readHeader();
     const signals = header.signals.map((_, i) => reader.readSignal(i));
 
     if (header.signals.some((signal) => signal.label === "EDF Annotations")) {
-      let annotations = reader.readAnnotations();
+      const annotations = reader.readAnnotations();
       setEdfAnnotations(annotations);
     }
 

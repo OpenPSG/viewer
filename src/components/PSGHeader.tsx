@@ -3,7 +3,7 @@
 // Copyright (C) 2025 The OpenPSG Authors.
 
 import React from "react";
-import { EDFHeader } from "@/lib/edf/edftypes";
+import { EDFHeader } from "edf-ts";
 import { User, FileText, Clock, Timer, Waves } from "lucide-react";
 
 interface PSGHeaderProps {

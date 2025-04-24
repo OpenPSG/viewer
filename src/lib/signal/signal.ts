@@ -2,7 +2,7 @@
 //
 // Copyright (C) 2025 The OpenPSG Authors.
 
-import { EDFSignal } from "@/lib/edf/edftypes";
+import { EDFSignal } from "edf-ts";
 import { calcCoeffs } from "@/lib/filters/IIRCascade";
 import { FilterCoeffs } from "@/lib/filters/IIRCoeffs";
 import { SignalUnit, parseSignalUnit, convertSignalUnit } from "./units";
@@ -46,22 +46,22 @@ const SIGNAL_TYPE_COLORS: Record<SignalType, string> = {
 // Signal sensitivities, always in mm per unit.
 const SIGNAL_SENSITIVITIES: Record<
   SignalType,
-  { value: number; zero: number; unit: SignalUnit }
+  { value: number; offset: number; unit: SignalUnit }
 > = {
-  [SignalType.EEG]: { value: 7, zero: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
-  [SignalType.EOG]: { value: 10, zero: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
-  [SignalType.EMG]: { value: 10, zero: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
-  [SignalType.ECG]: { value: 10, zero: 0, unit: SignalUnit.MILLIVOLT }, // mV/mm
-  [SignalType.AIRFLOW]: { value: 0.1, zero: 0, unit: SignalUnit.LITERS }, // L/s per mm
-  [SignalType.SPO2]: { value: 0.5, zero: 0, unit: SignalUnit.PERCENT }, // %/mm
-  [SignalType.SPCO2]: { value: 0.5, zero: 0, unit: SignalUnit.PERCENT }, // %/mm
-  [SignalType.HR]: { value: 2, zero: 0, unit: SignalUnit.BPM }, // bpm/mm
-  [SignalType.PRESSURE]: { value: 0.5, zero: 0, unit: SignalUnit.CM_H2O }, // cmH2O/mm
-  [SignalType.POSITION]: { value: 30, zero: 0, unit: SignalUnit.DEGREES }, // deg/mm
-  [SignalType.TEMPERATURE]: { value: 10, zero: 35, unit: SignalUnit.CELSIUS }, // °C/mm
-  [SignalType.SNORE]: { value: 1, zero: 0, unit: SignalUnit.DECIBEL }, // dB/mm
-  [SignalType.BELT]: { value: 5, zero: 0, unit: SignalUnit.MILLIMETERS }, // mm/mm
-  [SignalType.UNKNOWN]: { value: 1, zero: 0, unit: SignalUnit.MICROVOLT }, // fallback
+  [SignalType.EEG]: { value: 7, offset: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
+  [SignalType.EOG]: { value: 10, offset: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
+  [SignalType.EMG]: { value: 10, offset: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
+  [SignalType.ECG]: { value: 10, offset: 0, unit: SignalUnit.MILLIVOLT }, // mV/mm
+  [SignalType.AIRFLOW]: { value: 0.1, offset: 0, unit: SignalUnit.LITERS }, // L/s per mm
+  [SignalType.SPO2]: { value: 0.5, offset: 0, unit: SignalUnit.PERCENT }, // %/mm
+  [SignalType.SPCO2]: { value: 0.5, offset: 0, unit: SignalUnit.PERCENT }, // %/mm
+  [SignalType.HR]: { value: 2, offset: 0, unit: SignalUnit.BPM }, // bpm/mm
+  [SignalType.PRESSURE]: { value: 0.5, offset: 0, unit: SignalUnit.CM_H2O }, // cmH2O/mm
+  [SignalType.POSITION]: { value: 30, offset: 0, unit: SignalUnit.DEGREES }, // deg/mm
+  [SignalType.TEMPERATURE]: { value: 10, offset: 35, unit: SignalUnit.CELSIUS }, // °C/mm
+  [SignalType.SNORE]: { value: 1, offset: 0, unit: SignalUnit.DECIBEL }, // dB/mm
+  [SignalType.BELT]: { value: 5, offset: 0, unit: SignalUnit.MILLIMETERS }, // mm/mm
+  [SignalType.UNKNOWN]: { value: 1, offset: 0, unit: SignalUnit.MICROVOLT }, // fallback
 };
 
 // Get the signal type from its EDF signal header
@@ -202,7 +202,16 @@ export function getYAxisRangeForSignal(
     unit = sensitivity.unit;
   }
 
-  const zero = convertSignalUnit(sensitivity.zero, sensitivity.unit, unit);
+  let offset: number;
+  try {
+    offset = convertSignalUnit(sensitivity.offset, sensitivity.unit, unit);
+  } catch (e) {
+    console.error(
+      `Error converting offset ${sensitivity.offset} ${sensitivity.unit} to ${unit}:`,
+      e,
+    );
+    return [0, 0];
+  }
 
   const sensitivityPerMM = convertSignalUnit(
     sensitivity.value,
@@ -211,7 +220,7 @@ export function getYAxisRangeForSignal(
   );
   const rangeHalf = (sensitivityPerMM * displayHeightMM) / 2;
 
-  return [zero - rangeHalf, zero + rangeHalf];
+  return [offset - rangeHalf, offset + rangeHalf];
 }
 
 export function getFiltersForSignal(

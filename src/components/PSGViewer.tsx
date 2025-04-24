@@ -5,7 +5,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import "./PSGViewer.css";
 import Plot from "react-plotly.js";
-import { EDFHeader, EDFAnnotation } from "@/lib/edf/edftypes";
+import { EDFHeader, EDFAnnotation } from "edf-ts";
 import {
   getSignalType,
   getColorForSignalType,
