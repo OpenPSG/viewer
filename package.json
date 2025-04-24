@@ -1,7 +1,7 @@
 {
   "name": "openpsg-viewer",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A Web Based Polysomnography Report Viewer",
   "type": "module",
   "scripts": {
