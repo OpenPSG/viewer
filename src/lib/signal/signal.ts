@@ -2,9 +2,9 @@
 //
 // Copyright (C) 2025 The OpenPSG Authors.
 
-import { EDFSignal } from "../edf/edftypes";
-import { calcCoeffs } from "../filters/IIRCascade";
-import { FilterCoeffs } from "../filters/IIRCoeffs";
+import { EDFSignal } from "@/lib/edf/edftypes";
+import { calcCoeffs } from "@/lib/filters/IIRCascade";
+import { FilterCoeffs } from "@/lib/filters/IIRCoeffs";
 import { SignalUnit, parseSignalUnit, convertSignalUnit } from "./units";
 
 // Common categories for signals used in PSG (Polysomnography).

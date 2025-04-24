@@ -3,9 +3,11 @@
 // Copyright (C) 2025 The OpenPSG Authors.
 
 import React, { useState } from "react";
-import { EDFReader } from "./lib/edf/edfreader";
-import { EDFHeader } from "./lib/edf/edftypes";
-import PSGViewer from "./components/PSGViewer";
+import { EDFReader } from "@/lib/edf/edfreader";
+import { EDFHeader } from "@/lib/edf/edftypes";
+import PSGViewer from "@/components/PSGViewer";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 
 function App() {
   const [edfHeader, setEdfHeader] = useState<EDFHeader | null>(null);
@@ -27,16 +29,22 @@ function App() {
   };
 
   return (
-    <div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
       {!edfHeader || !edfSignals ? (
-        <input
-          type="file"
-          accept=".edf"
-          onChange={handleFileUpload}
-          style={{ margin: 20 }}
-        />
+        <Card className="w-full max-w-md p-6">
+          <CardContent className="flex flex-col items-center space-y-4">
+            <Input
+              type="file"
+              accept=".edf"
+              onChange={handleFileUpload}
+              className="cursor-pointer"
+            />
+          </CardContent>
+        </Card>
       ) : (
-        <PSGViewer header={edfHeader} signals={edfSignals} />
+        <div className="min-h-screen w-full bg-white">
+          <PSGViewer header={edfHeader} signals={edfSignals} />
+        </div>
       )}
     </div>
   );

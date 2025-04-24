@@ -22,7 +22,7 @@
  */
 
 import { FilterCoeffs, FilterParams, IIRCoeffs } from "./IIRCoeffs";
-import { table, tiTable } from "./IIRFilterTables";
+import { table, tiTable } from "./IIRTables";
 
 export type FilterBehavior =
   | "lowpass"
