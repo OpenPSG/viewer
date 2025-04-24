@@ -199,6 +199,46 @@ export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
     [header.signals],
   );
 
+  const { tickvals, ticktext } = useMemo(() => {
+    const [start, end] = xRange;
+    const duration = end - start;
+    if (duration <= 0) return { tickvals: [], ticktext: [] };
+
+    let interval: number;
+    if (duration <= 60) {
+      interval = 5;
+    } else if (duration <= 300) {
+      interval = 30;
+    } else if (duration <= 1800) {
+      interval = 60; // 1 min
+    } else if (duration <= 7200) {
+      interval = 300; // 5 min
+    } else if (duration <= 14400) {
+      interval = 600; // 10 min
+    } else if (duration <= 43200) {
+      interval = 1800; // 30 min
+    } else {
+      interval = 3600; // 1 hour
+    }
+
+    const tickvals: number[] = [];
+    const ticktext: string[] = [];
+
+    for (
+      let t = Math.ceil(start / interval) * interval;
+      t <= end;
+      t += interval
+    ) {
+      tickvals.push(t);
+
+      const date = new Date(header.startTime.getTime() + t * 1000);
+      const wallTime = date.toTimeString().slice(0, 8);
+      ticktext.push(wallTime);
+    }
+
+    return { tickvals, ticktext };
+  }, [xRange, header.startTime]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const [start, end] = xRange;
@@ -286,6 +326,10 @@ export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
             side: "bottom",
             range: plotlyXRange,
             constrain: "range",
+            tickvals,
+            ticktext,
+            tickangle: 0,
+            tickfont: { size: 10 },
           },
           ...Object.fromEntries(
             channelLabels.map((_, i) => [
