@@ -5,13 +5,15 @@
 import React, { useState } from "react";
 import { EDFReader } from "@/lib/edf/edfreader";
 import { EDFHeader } from "@/lib/edf/edftypes";
-import { PSGViewer } from "@/components/PSGViewer";
+import { PSGViewer, PSGEvent } from "@/components/PSGViewer";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import _ from "lodash";
 
 function App() {
   const [edfHeader, setEdfHeader] = useState<EDFHeader | null>(null);
   const [edfSignals, setEdfSignals] = useState<number[][] | null>(null);
+  const [edfAnnotations, setEdfAnnotations] = useState<PSGEvent[]>([]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -22,7 +24,12 @@ function App() {
     const arrayBuffer = await file.arrayBuffer();
     const reader = new EDFReader(arrayBuffer);
     const header = reader.readHeader();
-    const signals = header.signals.map((_, i) => reader.readSignal(header, i));
+    const signals = header.signals.map((_, i) => reader.readSignal(i));
+
+    if (header.signals.some((signal) => signal.label === "EDF Annotations")) {
+      let annotations = reader.readAnnotations();
+      setEdfAnnotations(annotations);
+    }
 
     setEdfHeader(header);
     setEdfSignals(signals);
@@ -50,7 +57,10 @@ function App() {
                 in their region.
               </div>
               <div className="text-center">
-                <a href="https://openpsg.com/privacy.html" className="text-blue-500 hover:underline text-xs">
+                <a
+                  href="https://openpsg.com/privacy.html"
+                  className="text-blue-500 hover:underline text-xs"
+                >
                   Privacy Policy
                 </a>
               </div>
@@ -58,7 +68,11 @@ function App() {
           </Card>
         </div>
       ) : (
-        <PSGViewer header={edfHeader} signals={edfSignals} />
+        <PSGViewer
+          header={edfHeader}
+          signals={edfSignals}
+          events={edfAnnotations}
+        />
       )}
     </>
   );

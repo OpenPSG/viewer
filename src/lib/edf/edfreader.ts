@@ -4,11 +4,13 @@
 
 import { parse as parseDate } from "date-fns";
 import { EDFHeader, EDFSignal, EDFAnnotation, EDFVersion } from "./edftypes";
+import _ from "lodash";
 
 export class EDFReader {
   private view: DataView;
   private textDecoder = new TextDecoder("ascii");
   private byteArray: Uint8Array;
+  private header?: EDFHeader;
 
   constructor(buffer: ArrayBuffer) {
     this.view = new DataView(buffer);
@@ -16,6 +18,8 @@ export class EDFReader {
   }
 
   readHeader(): EDFHeader {
+    if (this.header) return this.header;
+
     const headerText = this.textDecoder.decode(this.byteArray.subarray(0, 256));
     const version = headerText.substring(0, 8).trim() as EDFVersion;
     const patientId = headerText.substring(8, 88).trim();
@@ -70,7 +74,7 @@ export class EDFReader {
       signals.push(signal as EDFSignal);
     }
 
-    return {
+    this.header = {
       version,
       patientId,
       recordingId,
@@ -82,13 +86,12 @@ export class EDFReader {
       signalCount,
       signals,
     };
+
+    return _.cloneDeep(this.header);
   }
 
-  readSignal(
-    header: EDFHeader,
-    signalIndex: number,
-    recordNumber?: number,
-  ): number[] {
+  readSignal(signalIndex: number, recordNumber?: number): number[] {
+    const header = this.header ?? this.readHeader();
     const signal = header.signals[signalIndex];
     const samplesPerRecord = signal.samplesPerRecord;
     const samples: number[] = [];
@@ -121,7 +124,8 @@ export class EDFReader {
     return samples;
   }
 
-  readAnnotations(header: EDFHeader, recordNumber?: number): EDFAnnotation[] {
+  readAnnotations(recordNumber?: number): EDFAnnotation[] {
+    const header = this.header ?? this.readHeader();
     const annSignalIndex = header.signals.findIndex((sig) =>
       sig.label.includes("EDF Annotations"),
     );

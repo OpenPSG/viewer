@@ -21,8 +21,8 @@ beforeAll(() => {
   const signalIndex = header.signals.findIndex((signal) =>
     signal.label.includes("sine 8.5 Hz"),
   );
-  samples = reader.readSignal(header, signalIndex, 0);
-  annotations = reader.readAnnotations(header);
+  samples = reader.readSignal(signalIndex, 0);
+  annotations = reader.readAnnotations();
 });
 
 describe("EDFReader", () => {

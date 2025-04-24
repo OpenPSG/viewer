@@ -46,22 +46,22 @@ const SIGNAL_TYPE_COLORS: Record<SignalType, string> = {
 // Signal sensitivities, always in mm per unit.
 const SIGNAL_SENSITIVITIES: Record<
   SignalType,
-  { value: number; unit: SignalUnit }
+  { value: number; zero: number; unit: SignalUnit }
 > = {
-  [SignalType.EEG]: { value: 7, unit: SignalUnit.MICROVOLT }, // µV/mm
-  [SignalType.EOG]: { value: 10, unit: SignalUnit.MICROVOLT }, // µV/mm
-  [SignalType.EMG]: { value: 10, unit: SignalUnit.MICROVOLT }, // µV/mm
-  [SignalType.ECG]: { value: 10, unit: SignalUnit.MILLIVOLT }, // mV/mm
-  [SignalType.AIRFLOW]: { value: 0.1, unit: SignalUnit.LITERS }, // L/s per mm
-  [SignalType.SPO2]: { value: 0.5, unit: SignalUnit.PERCENT }, // %/mm
-  [SignalType.SPCO2]: { value: 0.5, unit: SignalUnit.PERCENT }, // %/mm
-  [SignalType.HR]: { value: 2, unit: SignalUnit.BPM }, // bpm/mm
-  [SignalType.PRESSURE]: { value: 0.5, unit: SignalUnit.CM_H2O }, // cmH2O/mm
-  [SignalType.POSITION]: { value: 30, unit: SignalUnit.DEGREES }, // deg/mm
-  [SignalType.TEMPERATURE]: { value: 0.1, unit: SignalUnit.CELSIUS }, // °C/mm
-  [SignalType.SNORE]: { value: 1, unit: SignalUnit.DECIBEL }, // dB/mm
-  [SignalType.BELT]: { value: 5, unit: SignalUnit.MILLIMETERS }, // mm/mm
-  [SignalType.UNKNOWN]: { value: 1, unit: SignalUnit.MICROVOLT }, // fallback
+  [SignalType.EEG]: { value: 7, zero: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
+  [SignalType.EOG]: { value: 10, zero: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
+  [SignalType.EMG]: { value: 10, zero: 0, unit: SignalUnit.MICROVOLT }, // µV/mm
+  [SignalType.ECG]: { value: 10, zero: 0, unit: SignalUnit.MILLIVOLT }, // mV/mm
+  [SignalType.AIRFLOW]: { value: 0.1, zero: 0, unit: SignalUnit.LITERS }, // L/s per mm
+  [SignalType.SPO2]: { value: 0.5, zero: 0, unit: SignalUnit.PERCENT }, // %/mm
+  [SignalType.SPCO2]: { value: 0.5, zero: 0, unit: SignalUnit.PERCENT }, // %/mm
+  [SignalType.HR]: { value: 2, zero: 0, unit: SignalUnit.BPM }, // bpm/mm
+  [SignalType.PRESSURE]: { value: 0.5, zero: 0, unit: SignalUnit.CM_H2O }, // cmH2O/mm
+  [SignalType.POSITION]: { value: 30, zero: 0, unit: SignalUnit.DEGREES }, // deg/mm
+  [SignalType.TEMPERATURE]: { value: 10, zero: 35, unit: SignalUnit.CELSIUS }, // °C/mm
+  [SignalType.SNORE]: { value: 1, zero: 0, unit: SignalUnit.DECIBEL }, // dB/mm
+  [SignalType.BELT]: { value: 5, zero: 0, unit: SignalUnit.MILLIMETERS }, // mm/mm
+  [SignalType.UNKNOWN]: { value: 1, zero: 0, unit: SignalUnit.MICROVOLT }, // fallback
 };
 
 // Get the signal type from its EDF signal header
@@ -101,9 +101,9 @@ export function getSignalType(signal: EDFSignal): SignalType {
 
   // Airflow
   if (
-    containsAny(label, ["flow", "airflow"]) ||
-    containsAny(transducer, ["nasal", "thermistor", "airflow"]) ||
-    containsAny(unit, ["l/s", "ml/s"])
+    (containsAny(label, ["flow", "airflow"]) ||
+      containsAny(transducer, ["nasal", "thermistor", "airflow"])) &&
+    containsAny(unit, ["l/s", "ml/s", "l/min", "ml/min"])
   ) {
     return SignalType.AIRFLOW;
   }
@@ -202,13 +202,16 @@ export function getYAxisRangeForSignal(
     unit = sensitivity.unit;
   }
 
+  const zero = convertSignalUnit(sensitivity.zero, sensitivity.unit, unit);
+
   const sensitivityPerMM = convertSignalUnit(
     sensitivity.value,
     sensitivity.unit,
     unit,
   );
   const rangeHalf = (sensitivityPerMM * displayHeightMM) / 2;
-  return [-rangeHalf, rangeHalf];
+
+  return [zero - rangeHalf, zero + rangeHalf];
 }
 
 export function getFiltersForSignal(

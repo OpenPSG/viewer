@@ -2,10 +2,10 @@
 //
 // Copyright (C) 2025 The OpenPSG Authors.
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import "./PSGViewer.css";
 import Plot from "react-plotly.js";
-import { EDFHeader } from "@/lib/edf/edftypes";
+import { EDFHeader, EDFAnnotation } from "@/lib/edf/edftypes";
 import {
   getSignalType,
   getColorForSignalType,
@@ -15,13 +15,24 @@ import {
 import { IIRFilter } from "@/lib/filters/IIRFilter";
 import { resample } from "@/lib/resampling/resample";
 import { PSGHeader } from "@/components/PSGHeader";
+import chroma from "chroma-js";
+import _ from "lodash";
+
+export interface PSGEvent extends EDFAnnotation {
+  color?: string;
+}
 
 interface PSGViewerProps {
   header: EDFHeader;
   signals: number[][];
+  events?: PSGEvent[];
 }
 
-export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
+export const PSGViewer: React.FC<PSGViewerProps> = ({
+  header,
+  signals,
+  events,
+}) => {
   const totalDuration = useMemo(
     () => header.dataRecords * header.recordDuration,
     [header],
@@ -199,6 +210,73 @@ export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
     [header.signals],
   );
 
+  const eventMarkers = useMemo(() => {
+    if (!events || events.length === 0) return { shapes: [], annotations: [] };
+
+    // Hide labels if zoomed out too far
+    const showLabels = xRange[1] - xRange[0] <= 600;
+
+    const visible = events.filter(
+      (a) =>
+        a.onset < xRange[1] &&
+        (a.duration === undefined || a.onset + a.duration > xRange[0]),
+    );
+
+    const shapes: Partial<Plotly.Shape>[] = [];
+    const labels: Partial<Plotly.Annotations>[] = [];
+
+    visible.forEach((a) => {
+      const color = a.color || "red";
+      const fillcolor = chroma(color).alpha(0.1).hex();
+
+      const start = a.onset;
+      if (a.duration) {
+        const end = a.onset + a.duration;
+
+        shapes.push({
+          type: "rect",
+          xref: "x",
+          yref: "paper",
+          x0: start,
+          x1: end,
+          y0: 0,
+          y1: 1,
+          fillcolor: fillcolor,
+          line: { width: 0 },
+        });
+      } else {
+        shapes.push({
+          type: "line",
+          x0: start,
+          x1: start,
+          yref: "paper",
+          y0: 0,
+          y1: 1,
+          line: { color, width: 2 },
+        });
+      }
+
+      if (showLabels) {
+        labels.push({
+          x: start + 1,
+          y: 0.01,
+          xref: "x",
+          yref: "paper",
+          text: a.annotation,
+          showarrow: false,
+          font: { size: 10, color: color },
+          align: "left",
+          xanchor: "left",
+          yanchor: "bottom",
+          bgcolor: "white",
+          borderpad: 2,
+        });
+      }
+    });
+
+    return { shapes, annotations: labels };
+  }, [events, xRange]);
+
   const { tickvals, ticktext } = useMemo(() => {
     const [start, end] = xRange;
     const duration = end - start;
@@ -239,6 +317,11 @@ export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
     return { tickvals, ticktext };
   }, [xRange, header.startTime]);
 
+  // Don't waste time rerendering if the user is scrolling rapidly etc
+  const throttledSetXRange = _.throttle((start: number, end: number) => {
+    setXRange([start, end]);
+  }, 100);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const [start, end] = xRange;
@@ -254,7 +337,7 @@ export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
 
         // Only update if range actually changes
         if (nextStart !== start || nextEnd !== end) {
-          setXRange([nextStart, nextEnd]);
+          throttledSetXRange(nextStart, nextEnd);
         }
       } else if (e.key === "ArrowLeft") {
         if (start <= 0) return;
@@ -263,41 +346,44 @@ export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
         const nextEnd = Math.max(end - moveBy, moveBy);
 
         if (nextStart !== start || nextEnd !== end) {
-          setXRange([nextStart, nextEnd]);
+          throttledSetXRange(nextStart, nextEnd);
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown, { passive: true });
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [xRange, totalDuration, epochDuration]);
+  }, [xRange, totalDuration, epochDuration, throttledSetXRange]);
 
-  const handleRelayout = (e: Partial<Plotly.Layout>) => {
-    let newStart: number | undefined = undefined;
-    let newEnd: number | undefined = undefined;
+  const handleRelayout = useCallback(
+    (e: Partial<Plotly.Layout>) => {
+      let newStart: number | undefined;
+      let newEnd: number | undefined;
 
-    if (e["xaxis.range"]) {
-      [newStart, newEnd] = e["xaxis.range"] as [number, number];
-    } else if (
-      e["xaxis.range[0]"] !== undefined &&
-      e["xaxis.range[1]"] !== undefined
-    ) {
-      newStart = e["xaxis.range[0]"] as number;
-      newEnd = e["xaxis.range[1]"] as number;
-    }
-
-    const auto = e["xaxis.autorange"];
-    if (typeof newStart === "number" && typeof newEnd === "number") {
-      newStart = Math.max(0, newStart);
-      newEnd = Math.min(totalDuration, newEnd);
-      if (newEnd - newStart < 1) {
-        newEnd = newStart + 1;
+      if (e["xaxis.range"]) {
+        [newStart, newEnd] = e["xaxis.range"] as [number, number];
+      } else if (
+        e["xaxis.range[0]"] !== undefined &&
+        e["xaxis.range[1]"] !== undefined
+      ) {
+        newStart = e["xaxis.range[0]"] as number;
+        newEnd = e["xaxis.range[1]"] as number;
       }
-      setXRange([newStart, newEnd]);
-    } else if (auto) {
-      setXRange([0, epochDuration]);
-    }
-  };
+
+      const auto = e["xaxis.autorange"];
+      if (typeof newStart === "number" && typeof newEnd === "number") {
+        newStart = Math.max(0, newStart);
+        newEnd = Math.min(totalDuration, newEnd);
+        if (newEnd - newStart < 1) {
+          newEnd = newStart + 1;
+        }
+        throttledSetXRange(newStart, newEnd);
+      } else if (auto) {
+        throttledSetXRange(0, epochDuration);
+      }
+    },
+    [throttledSetXRange, totalDuration, epochDuration],
+  );
 
   return (
     <div className="w-full min-h-screen bg-white flex flex-col">
@@ -348,8 +434,12 @@ export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
               },
             ]),
           ),
-          shapes: [...secondMarkers, ...epochBoxes],
-          annotations: [...epochAnnotations, ...channelAnnotations],
+          shapes: [...secondMarkers, ...epochBoxes, ...eventMarkers.shapes],
+          annotations: [
+            ...epochAnnotations,
+            ...channelAnnotations,
+            ...eventMarkers.annotations,
+          ],
         }}
         onRelayout={handleRelayout}
         config={{ responsive: true, scrollZoom: true }}

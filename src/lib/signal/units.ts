@@ -101,6 +101,7 @@ const unitAliasMap: Record<string, SignalUnit> = {
   c: SignalUnit.CELSIUS,
   celsius: SignalUnit.CELSIUS,
   centigrade: SignalUnit.CELSIUS,
+  degc: SignalUnit.CELSIUS,
   "°f": SignalUnit.FAHRENHEIT,
   f: SignalUnit.FAHRENHEIT,
   fahrenheit: SignalUnit.FAHRENHEIT,
