@@ -14,17 +14,14 @@ import {
 } from "@/lib/signal/signal";
 import { IIRFilter } from "@/lib/filters/IIRFilter";
 import { resample } from "@/lib/resampling/resample";
+import { PSGHeader } from "@/components/PSGHeader";
 
 interface PSGViewerProps {
   header: EDFHeader;
   signals: number[][];
 }
 
-const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
-  const [layoutSize, setLayoutSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+export const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
   const totalDuration = useMemo(
     () => header.dataRecords * header.recordDuration,
     [header],
@@ -203,15 +200,6 @@ const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
   );
 
   useEffect(() => {
-    const handleResize = (): void => {
-      setLayoutSize({ width: window.innerWidth, height: window.innerHeight });
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const [start, end] = xRange;
       const windowSize = end - start;
@@ -272,60 +260,57 @@ const PSGViewer: React.FC<PSGViewerProps> = ({ header, signals }) => {
   };
 
   return (
-    <Plot
-      className="w-full min-h-screen"
-      data={traces}
-      layout={{
-        title: "Polysomnography Viewer",
-        showlegend: false,
-        plot_bgcolor: "rgba(255, 255, 204, 0.1)",
-        paper_bgcolor: "white",
-        height:
-          channelLabels.length * 100 > layoutSize.height
-            ? channelLabels.length * 100
-            : undefined,
-        margin: { t: 40, l: 40, r: 40, b: 40 },
-        grid: {
-          rows: channelLabels.length,
-          columns: 1,
-          pattern: "independent",
-        },
-        xaxis: {
-          title: "Time (s)",
-          domain: [0, 1],
-          anchor:
-            `y${channelLabels.length === 1 ? "" : channelLabels.length}` as Plotly.AxisName,
-          showgrid: true,
-          gridcolor: "#ddd",
-          side: "bottom",
-          range: plotlyXRange,
-          constrain: "range",
-        },
-        ...Object.fromEntries(
-          channelLabels.map((_, i) => [
-            `yaxis${i === 0 ? "" : i + 1}`,
-            {
-              domain: [
-                1 - (i + 1) / channelLabels.length,
-                1 - i / channelLabels.length,
-              ],
-              showticklabels: false,
-              fixedrange: true,
-              zeroline: false,
-              showgrid: false,
-              ticks: "",
-              range: yAxisRanges[i],
-            },
-          ]),
-        ),
-        shapes: [...secondMarkers, ...epochBoxes],
-        annotations: [...epochAnnotations, ...channelAnnotations],
-      }}
-      onRelayout={handleRelayout}
-      config={{ responsive: true, scrollZoom: true }}
-      useResizeHandler
-    />
+    <div className="w-full min-h-screen bg-white flex flex-col">
+      <PSGHeader header={header} />
+      <Plot
+        className="w-full min-h-[calc(100vh-60px)]"
+        data={traces}
+        layout={{
+          title: "Polysomnography Viewer",
+          showlegend: false,
+          plot_bgcolor: "rgba(255, 255, 204, 0.1)",
+          paper_bgcolor: "white",
+          margin: { t: 40, l: 40, r: 40, b: 40 },
+          grid: {
+            rows: channelLabels.length,
+            columns: 1,
+            pattern: "independent",
+          },
+          xaxis: {
+            title: "Time (s)",
+            domain: [0, 1],
+            anchor:
+              `y${channelLabels.length === 1 ? "" : channelLabels.length}` as Plotly.AxisName,
+            showgrid: true,
+            gridcolor: "#ddd",
+            side: "bottom",
+            range: plotlyXRange,
+            constrain: "range",
+          },
+          ...Object.fromEntries(
+            channelLabels.map((_, i) => [
+              `yaxis${i === 0 ? "" : i + 1}`,
+              {
+                domain: [
+                  1 - (i + 1) / channelLabels.length,
+                  1 - i / channelLabels.length,
+                ],
+                showticklabels: false,
+                fixedrange: true,
+                zeroline: false,
+                showgrid: false,
+                ticks: "",
+                range: yAxisRanges[i],
+              },
+            ]),
+          ),
+          shapes: [...secondMarkers, ...epochBoxes],
+          annotations: [...epochAnnotations, ...channelAnnotations],
+        }}
+        onRelayout={handleRelayout}
+        config={{ responsive: true, scrollZoom: true }}
+        useResizeHandler
+      />
+    </div>
   );
 };
-
-export default PSGViewer;

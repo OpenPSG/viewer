@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import { EDFReader } from "@/lib/edf/edfreader";
 import { EDFHeader } from "@/lib/edf/edftypes";
-import PSGViewer from "@/components/PSGViewer";
+import { PSGViewer } from "@/components/PSGViewer";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -42,9 +42,7 @@ function App() {
           </CardContent>
         </Card>
       ) : (
-        <div className="min-h-screen w-full bg-white">
-          <PSGViewer header={edfHeader} signals={edfSignals} />
-        </div>
+        <PSGViewer header={edfHeader} signals={edfSignals} />
       )}
     </div>
   );
