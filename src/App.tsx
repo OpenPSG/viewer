@@ -49,6 +49,11 @@ function App() {
                 ensuring compliance with the relevant regulations and standards
                 in their region.
               </div>
+              <div className="text-center">
+                <a href="https://openpsg.com/privacy.html" className="text-blue-500 hover:underline text-xs">
+                  Privacy Policy
+                </a>
+              </div>
             </CardContent>
           </Card>
         </div>
