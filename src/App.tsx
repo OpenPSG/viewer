@@ -56,7 +56,7 @@ function App() {
               </div>
               <div className="text-center">
                 <a
-                  href="https://openpsg.com/privacy.html"
+                  href="/privacy.html"
                   className="text-blue-500 hover:underline text-xs"
                 >
                   Privacy Policy
